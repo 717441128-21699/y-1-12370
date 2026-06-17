@@ -1,0 +1,156 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-navy-900 text-navy-50 font-sans antialiased;
+    background-image: radial-gradient(
+        circle at 20% 0%,
+        rgba(212, 175, 55, 0.05) 0%,
+        transparent 50%
+      ),
+      radial-gradient(circle at 80% 100%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-navy-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-navy-600 rounded-full hover:bg-gold-500 transition-colors;
+  }
+
+  ::selection {
+    @apply bg-gold-500/30 text-gold-300;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-glass-dark backdrop-blur-xl border border-white/5 rounded-xl;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+
+  .gold-border {
+    position: relative;
+  }
+
+  .gold-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.5), transparent 50%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .text-gold-gradient {
+    @apply bg-gold-gradient bg-clip-text text-transparent bg-[length:200%_auto];
+    animation: shimmer 3s linear infinite;
+  }
+
+  .text-profit-glow {
+    @apply text-profit;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+  }
+
+  .text-loss-glow {
+    @apply text-loss;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  }
+
+  .btn-primary {
+    @apply px-6 py-2.5 rounded-lg font-medium text-navy-900 bg-gold-gradient bg-[length:200%_auto] hover:bg-[position:right_center] transition-all duration-500 hover:shadow-gold active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-2.5 rounded-lg font-medium text-navy-50 bg-navy-700 border border-navy-500 hover:bg-navy-600 hover:border-gold-500/50 transition-all duration-300 active:scale-95;
+  }
+
+  .btn-danger {
+    @apply px-6 py-2.5 rounded-lg font-medium text-white bg-loss hover:bg-loss-dark transition-all duration-300 active:scale-95;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-lg bg-navy-800 border border-navy-600 text-navy-50 placeholder-navy-400 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500/30 transition-all duration-200;
+  }
+
+  .badge-gold {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gold-500/15 text-gold-400 border border-gold-500/30;
+  }
+
+  .badge-profit {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-profit/15 text-profit border border-profit/30;
+  }
+
+  .badge-loss {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-loss/15 text-loss border border-loss/30;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-navy-200 hover:text-gold-400 hover:bg-gold-500/10 transition-all duration-200;
+  }
+
+  .nav-link-active {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-gold-400 bg-gold-500/10 border-l-2 border-gold-500 shadow-gold-sm;
+  }
+
+  .table-row-hover {
+    @apply hover:bg-white/[0.02] transition-colors duration-200;
+  }
+
+  .divider-glow {
+    @apply h-px bg-gradient-to-r from-transparent via-gold-500/30 to-transparent;
+  }
+
+  .skeleton {
+    @apply bg-navy-700 animate-pulse;
+  }
+
+  .data-table {
+    @apply w-full border-collapse;
+  }
+
+  .data-table th {
+    @apply text-left text-xs font-medium text-navy-400 uppercase tracking-wider px-4 py-3 border-b border-navy-700;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 border-b border-navy-800 text-sm;
+  }
+}
+
+@layer utilities {
+  .content-auto {
+    content-visibility: auto;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .mask-fade-b {
+    mask-image: linear-gradient(to bottom, black 60%, transparent);
+  }
+}
