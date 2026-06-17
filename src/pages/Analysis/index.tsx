@@ -16,6 +16,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   X,
+  Info,
+  Zap,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import {
   formatMoney,
@@ -24,6 +28,7 @@ import {
   getProfitColor,
 } from "@/utils/format";
 import { cn } from "@/lib/utils";
+import { storage } from "@/utils/storage";
 import type { KLineType, KLineData } from "@/types";
 
 export default function AnalysisPage() {
@@ -40,12 +45,18 @@ export default function AnalysisPage() {
 
   const [klineType, setKlineType] = useState<KLineType>("day");
   const [showSettings, setShowSettings] = useState(false);
-  const [maParams, setMaParams] = useState({
-    ma5: { enabled: true, period: 5 },
-    ma10: { enabled: true, period: 10 },
-    ma20: { enabled: true, period: 20 },
-    ma60: { enabled: false, period: 60 },
+  const [maParams, setMaParams] = useState(() => {
+    return storage.get("maParams", {
+      ma5: { enabled: true, period: 5 },
+      ma10: { enabled: true, period: 10 },
+      ma20: { enabled: true, period: 20 },
+      ma60: { enabled: false, period: 60 },
+    });
   });
+
+  useEffect(() => {
+    storage.set("maParams", maParams);
+  }, [maParams]);
 
   const quote = getQuoteBySymbol(symbol) || quotes[0];
   const klineData = useMemo(() => getKLineData(symbol), [symbol, getKLineData]);
@@ -434,6 +445,101 @@ export default function AnalysisPage() {
     };
   }, [klineData]);
 
+  const signalAnalysis = useMemo(() => {
+    const lastData = klineData[klineData.length - 1];
+    if (!lastData) return null;
+
+    const macd = lastData.macd || 0;
+    const dif = lastData.dif || 0;
+    const dea = lastData.dea || 0;
+    const rsi = lastData.rsi || 50;
+
+    let macdSignal: "bullish" | "bearish" | "neutral" = "neutral";
+    let macdStrength = 0;
+    let macdDesc = "";
+
+    if (dif > dea && macd > 0) {
+      macdSignal = "bullish";
+      macdStrength = Math.min(100, Math.abs(macd) * 10 + 30);
+      macdDesc = "DIF在DEA上方，MACD柱状线为正，多头趋势";
+    } else if (dif < dea && macd < 0) {
+      macdSignal = "bearish";
+      macdStrength = Math.min(100, Math.abs(macd) * 10 + 30);
+      macdDesc = "DIF在DEA下方，MACD柱状线为负，空头趋势";
+    } else if (dif > dea && macd < 0) {
+      macdSignal = "bullish";
+      macdStrength = 40;
+      macdDesc = "DIF上穿DEA，金叉形成，短线看涨";
+    } else {
+      macdSignal = "bearish";
+      macdStrength = 40;
+      macdDesc = "DIF下穿DEA，死叉形成，短线看跌";
+    }
+
+    let rsiSignal: "bullish" | "bearish" | "neutral" = "neutral";
+    let rsiStrength = 0;
+    let rsiDesc = "";
+
+    if (rsi > 70) {
+      rsiSignal = "bearish";
+      rsiStrength = Math.min(100, (rsi - 70) * 3 + 40);
+      rsiDesc = `RSI=${rsi.toFixed(1)}，处于超买区间，注意回调风险`;
+    } else if (rsi < 30) {
+      rsiSignal = "bullish";
+      rsiStrength = Math.min(100, (30 - rsi) * 3 + 40);
+      rsiDesc = `RSI=${rsi.toFixed(1)}，处于超卖区间，存在反弹机会`;
+    } else if (rsi > 50) {
+      rsiSignal = "bullish";
+      rsiStrength = 30 + (rsi - 50) * 1.4;
+      rsiDesc = `RSI=${rsi.toFixed(1)}，位于50上方，偏强格局`;
+    } else {
+      rsiSignal = "bearish";
+      rsiStrength = 30 + (50 - rsi) * 1.4;
+      rsiDesc = `RSI=${rsi.toFixed(1)}，位于50下方，偏弱格局`;
+    }
+
+    const bullScore =
+      (macdSignal === "bullish" ? macdStrength : 0) +
+      (rsiSignal === "bullish" ? rsiStrength : 0);
+    const bearScore =
+      (macdSignal === "bearish" ? macdStrength : 0) +
+      (rsiSignal === "bearish" ? rsiStrength : 0);
+
+    let overallSignal: "bullish" | "bearish" | "neutral" = "neutral";
+    let overallStrength = 0;
+    if (bullScore > bearScore * 1.2) {
+      overallSignal = "bullish";
+      overallStrength = Math.min(100, bullScore / 2);
+    } else if (bearScore > bullScore * 1.2) {
+      overallSignal = "bearish";
+      overallStrength = Math.min(100, bearScore / 2);
+    } else {
+      overallSignal = "neutral";
+      overallStrength = 50;
+    }
+
+    return {
+      macd: {
+        signal: macdSignal,
+        strength: macdStrength,
+        desc: macdDesc,
+        dif: dif.toFixed(2),
+        dea: dea.toFixed(2),
+        macd: macd.toFixed(2),
+      },
+      rsi: {
+        signal: rsiSignal,
+        strength: rsiStrength,
+        desc: rsiDesc,
+        value: rsi.toFixed(1),
+      },
+      overall: {
+        signal: overallSignal,
+        strength: overallStrength,
+      },
+    };
+  }, [klineData]);
+
   return (
     <PageContainer
       title="技术分析"
@@ -584,6 +690,172 @@ export default function AnalysisPage() {
             />
           </div>
         </div>
+
+        {signalAnalysis && (
+          <div className="glass-card p-5 border-gold-500/20">
+            <div className="flex items-center gap-2 mb-5">
+              <Zap className="w-5 h-5 text-gold-400" />
+              <h3 className="font-serif font-semibold text-navy-100">
+                技术信号解读
+              </h3>
+              <span className="text-xs text-navy-500">基于MACD和RSI综合判断</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div
+                className={cn(
+                  "p-4 rounded-xl border",
+                  signalAnalysis.macd.signal === "bullish"
+                    ? "bg-profit/5 border-profit/30"
+                    : signalAnalysis.macd.signal === "bearish"
+                    ? "bg-loss/5 border-loss/30"
+                    : "bg-navy-800/50 border-navy-700"
+                )}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-navy-200">MACD</span>
+                  {signalAnalysis.macd.signal === "bullish" ? (
+                    <span className="flex items-center gap-1 text-xs text-profit">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      偏多
+                    </span>
+                  ) : signalAnalysis.macd.signal === "bearish" ? (
+                    <span className="flex items-center gap-1 text-xs text-loss">
+                      <TrendingDown className="w-3.5 h-3.5" />
+                      偏空
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs text-navy-400">
+                      <Info className="w-3.5 h-3.5" />
+                      中性
+                    </span>
+                  )}
+                </div>
+                <div className="w-full h-2 bg-navy-700 rounded-full overflow-hidden mb-3">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      signalAnalysis.macd.signal === "bullish"
+                        ? "bg-profit"
+                        : signalAnalysis.macd.signal === "bearish"
+                        ? "bg-loss"
+                        : "bg-navy-500"
+                    )}
+                    style={{ width: `${signalAnalysis.macd.strength}%` }}
+                  />
+                </div>
+                <p className="text-xs text-navy-400 line-clamp-2">
+                  {signalAnalysis.macd.desc}
+                </p>
+                <div className="flex gap-3 mt-2 text-xs text-navy-500 font-mono">
+                  <span>DIF: {signalAnalysis.macd.dif}</span>
+                  <span>DEA: {signalAnalysis.macd.dea}</span>
+                </div>
+              </div>
+
+              <div
+                className={cn(
+                  "p-4 rounded-xl border",
+                  signalAnalysis.rsi.signal === "bullish"
+                    ? "bg-profit/5 border-profit/30"
+                    : signalAnalysis.rsi.signal === "bearish"
+                    ? "bg-loss/5 border-loss/30"
+                    : "bg-navy-800/50 border-navy-700"
+                )}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-navy-200">RSI</span>
+                  {signalAnalysis.rsi.signal === "bullish" ? (
+                    <span className="flex items-center gap-1 text-xs text-profit">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      偏多
+                    </span>
+                  ) : signalAnalysis.rsi.signal === "bearish" ? (
+                    <span className="flex items-center gap-1 text-xs text-loss">
+                      <TrendingDown className="w-3.5 h-3.5" />
+                      偏空
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs text-navy-400">
+                      <Info className="w-3.5 h-3.5" />
+                      中性
+                    </span>
+                  )}
+                </div>
+                <div className="w-full h-2 bg-navy-700 rounded-full overflow-hidden mb-3">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      signalAnalysis.rsi.signal === "bullish"
+                        ? "bg-profit"
+                        : signalAnalysis.rsi.signal === "bearish"
+                        ? "bg-loss"
+                        : "bg-navy-500"
+                    )}
+                    style={{ width: `${signalAnalysis.rsi.strength}%` }}
+                  />
+                </div>
+                <p className="text-xs text-navy-400 line-clamp-2">
+                  {signalAnalysis.rsi.desc}
+                </p>
+                <div className="mt-2 text-xs text-navy-500 font-mono">
+                  当前值: {signalAnalysis.rsi.value}
+                </div>
+              </div>
+
+              <div
+                className={cn(
+                  "p-4 rounded-xl border",
+                  signalAnalysis.overall.signal === "bullish"
+                    ? "bg-profit/10 border-profit/40"
+                    : signalAnalysis.overall.signal === "bearish"
+                    ? "bg-loss/10 border-loss/40"
+                    : "bg-navy-800/50 border-navy-600"
+                )}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-navy-100">综合判断</span>
+                  {signalAnalysis.overall.signal === "bullish" ? (
+                    <span className="flex items-center gap-1 text-xs font-bold text-profit">
+                      <CheckCircle className="w-4 h-4" />
+                      看多
+                    </span>
+                  ) : signalAnalysis.overall.signal === "bearish" ? (
+                    <span className="flex items-center gap-1 text-xs font-bold text-loss">
+                      <AlertCircle className="w-4 h-4" />
+                      看空
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs font-bold text-gold-400">
+                      <Info className="w-4 h-4" />
+                      观望
+                    </span>
+                  )}
+                </div>
+                <div className="w-full h-3 bg-navy-700 rounded-full overflow-hidden mb-3">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      signalAnalysis.overall.signal === "bullish"
+                        ? "bg-gradient-to-r from-profit to-profit/60"
+                        : signalAnalysis.overall.signal === "bearish"
+                        ? "bg-gradient-to-r from-loss to-loss/60"
+                        : "bg-gradient-to-r from-gold-500 to-gold-400"
+                    )}
+                    style={{ width: `${signalAnalysis.overall.strength}%` }}
+                  />
+                </div>
+                <p className="text-xs text-navy-400">
+                  {signalAnalysis.overall.signal === "bullish"
+                    ? "技术指标整体偏多，可考虑逢低布局"
+                    : signalAnalysis.overall.signal === "bearish"
+                    ? "技术指标整体偏空，建议控制仓位风险"
+                    : "技术信号不明确，建议观望等待方向"}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-6">
           <div className="glass-card p-5">

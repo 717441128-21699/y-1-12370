@@ -110,14 +110,16 @@ export interface WatchlistStock {
 
 export interface Alert {
   id: string;
-  userId: string;
+  userId?: string;
   symbol: string;
   stockName: string;
   alertType: AlertType;
   threshold: number;
   enabled: boolean;
-  notifyChannel: string;
+  notifyChannel?: string;
   triggeredAt?: string;
+  currentPrice?: number;
+  changePercent?: number;
 }
 
 export interface Membership {
@@ -163,16 +165,28 @@ export interface BacktestResult {
   startDate: string;
   endDate: string;
   returnRate: number;
+  totalReturn?: number;
   annualReturnRate: number;
+  annualReturn?: number;
   sharpeRatio: number;
   maxDrawdown: number;
   winRate: number;
   profitLossRatio: number;
   totalTrades: number;
   profitTrades: number;
+  winningTrades?: number;
   lossTrades: number;
+  losingTrades?: number;
   equityCurve: { date: string; value: number }[];
   benchmarkCurve: { date: string; value: number }[];
+  strategyParams?: {
+    shortPeriod: number;
+    longPeriod: number;
+    signalPeriod: number;
+    stopLoss: number;
+    takeProfit: number;
+    positionSize: number;
+  };
 }
 
 export interface News {

@@ -52,12 +52,16 @@ export default function MarketPage() {
     getAnomalyStocks,
     alerts,
     triggeredAlerts,
+    alertHistory,
     toggleAlert,
     addAlert,
     checkPriceAlerts,
     setAlertThreshold,
     alertThreshold,
     getQuoteBySymbol,
+    clearAlertHistory,
+    refreshMarketData,
+    loading,
   } = useMarketStore();
 
   const watchlistQuotes = getWatchlistQuotes();
@@ -92,7 +96,7 @@ export default function MarketPage() {
       icon: Zap,
       count: anomalyStocks.length,
     },
-    { key: "alerts", label: "预警记录", icon: BellRing, count: triggeredAlerts.length },
+    { key: "alerts", label: "预警记录", icon: BellRing, count: alertHistory.length },
   ];
 
   const handleSetAlert = (stock: StockQuote) => {
@@ -575,37 +579,48 @@ export default function MarketPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-navy-400">
-                已触发的预警通知记录
+                共 {alertHistory.length} 条预警记录，阈值 {alertThreshold}%
               </p>
-              <button
-                onClick={() => checkPriceAlerts()}
-                className="btn-secondary text-sm py-2 flex items-center gap-2"
-              >
-                <Zap className="w-4 h-4" />
-                刷新预警
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => clearAlertHistory()}
+                  className="btn-secondary text-sm py-2 flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  清空记录
+                </button>
+                <button
+                  onClick={() => refreshMarketData()}
+                  disabled={loading}
+                  className="btn-primary text-sm py-2 flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Zap className={cn("w-4 h-4", loading && "animate-spin")} />
+                  刷新行情
+                </button>
+              </div>
             </div>
 
-            {triggeredAlerts.length > 0 ? (
+            {alertHistory.length > 0 ? (
               <div className="space-y-3">
-                {triggeredAlerts.map((alert, index) => {
+                {alertHistory.map((alert, index) => {
                   const quote = getQuoteBySymbol(alert.symbol);
                   return (
                     <div
                       key={alert.id}
+                      onClick={() => handleGoToAnalysis(alert.symbol)}
                       className={cn(
-                        "glass-card p-4 border-l-4",
+                        "glass-card p-4 border-l-4 cursor-pointer hover:bg-navy-800/50 transition-colors",
                         alert.alertType.includes("up")
                           ? "border-profit"
                           : "border-loss"
                       )}
-                      style={{ animationDelay: `${index * 50}ms` }}
+                      style={{ animationDelay: `${index * 30}ms` }}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div
                             className={cn(
-                              "w-10 h-10 rounded-xl flex items-center justify-center animate-pulse",
+                              "w-10 h-10 rounded-xl flex items-center justify-center",
                               alert.alertType.includes("up")
                                 ? "bg-profit/15"
                                 : "bg-loss/15"
@@ -642,27 +657,30 @@ export default function MarketPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          {quote && (
-                            <>
-                              <p
-                                className={cn(
-                                  "text-lg font-bold font-mono",
-                                  getProfitColor(quote.changePercent)
-                                )}
-                              >
-                                {quote.price.toFixed(2)}
-                              </p>
-                              <p
-                                className={cn(
-                                  "text-sm font-mono",
-                                  getProfitColor(quote.changePercent)
-                                )}
-                              >
-                                {formatPercent(quote.changePercent)}
-                              </p>
-                            </>
-                          )}
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p
+                              className={cn(
+                                "text-lg font-bold font-mono",
+                                alert.changePercent && alert.changePercent >= 0
+                                  ? "text-profit"
+                                  : "text-loss"
+                              )}
+                            >
+                              {alert.currentPrice?.toFixed(2) || quote?.price.toFixed(2)}
+                            </p>
+                            <p
+                              className={cn(
+                                "text-sm font-mono",
+                                alert.changePercent && alert.changePercent >= 0
+                                  ? "text-profit"
+                                  : "text-loss"
+                              )}
+                            >
+                              {formatPercent(alert.changePercent || quote?.changePercent || 0)}
+                            </p>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-navy-600" />
                         </div>
                       </div>
                     </div>
@@ -674,59 +692,26 @@ export default function MarketPage() {
                 <BellOff className="w-12 h-12 text-navy-600 mx-auto mb-4" />
                 <p className="text-lg text-navy-400">暂无预警记录</p>
                 <p className="text-sm text-navy-500 mt-2">
-                  设置预警后，当股票涨跌幅超过阈值时将在此显示
+                  当自选股涨跌幅超过 {alertThreshold}% 时将自动记录在此
                 </p>
+                <button
+                  onClick={() => refreshMarketData()}
+                  className="btn-primary mt-4 text-sm py-2"
+                >
+                  刷新行情检测预警
+                </button>
               </div>
             )}
 
             <div className="glass-card p-5 mt-6">
               <h3 className="text-lg font-serif font-semibold text-navy-100 mb-4">
-                所有预警设置
+                预警设置说明
               </h3>
-              <div className="space-y-2">
-                {alerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-navy-800/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => toggleAlert(alert.id)}
-                        className={cn(
-                          "p-1.5 rounded-lg transition-colors",
-                          alert.enabled
-                            ? "text-gold-400"
-                            : "text-navy-500"
-                        )}
-                      >
-                        {alert.enabled ? (
-                          <BellRing className="w-4 h-4" />
-                        ) : (
-                          <BellOff className="w-4 h-4" />
-                        )}
-                      </button>
-                      <div>
-                        <p className="font-medium text-sm text-navy-100">
-                          {alert.stockName}
-                        </p>
-                        <p className="text-xs text-navy-500">
-                          {alert.alertType.includes("up") ? "涨超" : "跌超"}{" "}
-                          {alert.threshold}% · {alert.notifyChannel}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        "text-xs px-2 py-0.5 rounded",
-                        alert.enabled
-                          ? "bg-profit/15 text-profit"
-                          : "bg-navy-700 text-navy-400"
-                      )}
-                    >
-                      {alert.enabled ? "已启用" : "已禁用"}
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-3 text-sm text-navy-400">
+                <p>• 当前预警阈值: <span className="text-gold-400 font-mono">{alertThreshold}%</span></p>
+                <p>• 调整阈值后，系统会自动重新检测所有自选股</p>
+                <p>• 点击预警记录可跳转到对应股票的技术分析页面</p>
+                <p>• 预警记录最多保留50条，自动按时间倒序排列</p>
               </div>
             </div>
           </div>

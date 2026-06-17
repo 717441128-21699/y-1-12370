@@ -42,6 +42,10 @@ export default function Dashboard() {
     getTotalProfit,
     getTotalProfitRate,
     getAccountById,
+    syncAccountData,
+    syncStatus,
+    syncProgress,
+    lastSyncTime,
   } = useAccountStore();
 
   const { getWatchlistQuotes, triggeredAlerts, news, getAnomalyStocks } = useMarketStore();
@@ -292,10 +296,21 @@ export default function Dashboard() {
                   </h2>
                   <span className="text-xs text-navy-500">点击切换查看明细</span>
                 </div>
-                <button className="flex items-center gap-1 text-xs text-navy-400 hover:text-gold-400 transition-colors">
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  刷新数据
-                </button>
+                <div className="flex items-center gap-3">
+                  {lastSyncTime && (
+                    <span className="text-xs text-navy-500">
+                      上次同步: {formatRelativeTime(lastSyncTime)}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => syncAccountData()}
+                    disabled={syncStatus === "syncing"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gold-500/10 text-gold-400 hover:bg-gold-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw className={cn("w-3.5 h-3.5", syncStatus === "syncing" && "animate-spin")} />
+                    {syncStatus === "syncing" ? `同步中 ${syncProgress}%` : syncStatus === "success" ? "同步成功" : "刷新数据"}
+                  </button>
+                </div>
               </div>
 
               <div className="flex gap-3">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import ReactECharts from "echarts-for-react";
 import PageContainer from "@/components/layout/PageContainer";
 import { useReportStore } from "@/stores/reportStore";
@@ -17,12 +17,24 @@ import {
   AlertCircle,
   ChevronRight,
   X,
+  ArrowUpRight,
+  ArrowDownRight,
+  List,
 } from "lucide-react";
 import { formatMoney, formatPercent } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
 export default function ReportsPage() {
-  const { monthlyReports, getMonthlyReport, exportReport } = useReportStore();
+  const {
+    monthlyReports,
+    getMonthlyReport,
+    exportReport,
+    selectedHoldingSymbol,
+    showHoldingDetail,
+    setSelectedHolding,
+    setShowHoldingDetail,
+    getTradesBySymbol,
+  } = useReportStore();
   const [selectedMonth, setSelectedMonth] = useState<string>(
     monthlyReports[0]?.month || ""
   );
@@ -31,6 +43,24 @@ export default function ReportsPage() {
   const [isExporting, setIsExporting] = useState(false);
 
   const currentReport = getMonthlyReport(selectedMonth);
+
+  const handleSelectMonth = (month: string) => {
+    setSelectedMonth(month);
+    setSelectedHolding(null);
+    setShowHoldingDetail(false);
+  };
+
+  const holdingTrades = useMemo(() => {
+    if (!selectedHoldingSymbol) return [];
+    return getTradesBySymbol(selectedHoldingSymbol);
+  }, [selectedHoldingSymbol, getTradesBySymbol]);
+
+  const selectedHolding = useMemo(() => {
+    if (!currentReport || !selectedHoldingSymbol) return null;
+    return currentReport.positionDetails.find(
+      (p) => p.symbol === selectedHoldingSymbol
+    );
+  }, [currentReport, selectedHoldingSymbol]);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -192,7 +222,7 @@ export default function ReportsPage() {
               <div
                 key={report.month}
                 onClick={() =>
-                  report.status === "ready" && setSelectedMonth(report.month)
+                  report.status === "ready" && handleSelectMonth(report.month)
                 }
                 className={cn(
                   "glass-card p-4 cursor-pointer transition-all",
@@ -383,9 +413,14 @@ export default function ReportsPage() {
               </div>
 
               <div className="glass-card p-5">
-                <h3 className="font-serif font-semibold text-navy-100 mb-4">
-                  持仓明细
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-serif font-semibold text-navy-100">
+                    持仓明细
+                  </h3>
+                  <span className="text-xs text-navy-500">
+                    点击持仓查看当月交易明细
+                  </span>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="data-table">
                     <thead>
@@ -401,7 +436,15 @@ export default function ReportsPage() {
                       {currentReport.positionDetails.map((pos, index) => (
                         <tr
                           key={pos.symbol}
-                          className="table-row-hover"
+                          onClick={() => {
+                            setSelectedHolding(pos.symbol);
+                            setShowHoldingDetail(true);
+                          }}
+                          className={cn(
+                            "table-row-hover cursor-pointer",
+                            selectedHoldingSymbol === pos.symbol &&
+                              "bg-gold-500/5"
+                          )}
                           style={{ animationDelay: `${index * 50}ms` }}
                         >
                           <td>
@@ -412,6 +455,7 @@ export default function ReportsPage() {
                               <p className="text-xs text-navy-500 font-mono">
                                 {pos.symbol}
                               </p>
+                              <ChevronRight className="w-4 h-4 text-navy-600 ml-auto" />
                             </div>
                           </td>
                           <td className="text-right font-mono text-navy-200">
@@ -535,6 +579,160 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+
+      {showHoldingDetail && selectedHolding && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="glass-card p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center",
+                    selectedHolding.profit >= 0
+                      ? "bg-profit/15"
+                      : "bg-loss/15"
+                  )}
+                >
+                  {selectedHolding.profit >= 0 ? (
+                    <ArrowUpRight className="w-5 h-5 text-profit" />
+                  ) : (
+                    <ArrowDownRight className="w-5 h-5 text-loss" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-serif font-semibold text-navy-100">
+                    {selectedHolding.stockName}
+                  </h3>
+                  <p className="text-sm text-navy-500 font-mono">
+                    {selectedHolding.symbol} · 当月交易明细
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowHoldingDetail(false);
+                  setSelectedHolding(null);
+                }}
+                className="p-1.5 rounded-lg hover:bg-navy-700 text-navy-400 hover:text-navy-200 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-3 mb-6">
+              <div className="p-3 rounded-lg bg-navy-800/50">
+                <p className="text-xs text-navy-500 mb-1">持仓数量</p>
+                <p className="text-lg font-bold font-mono text-navy-100">
+                  {selectedHolding.quantity.toLocaleString()}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-navy-800/50">
+                <p className="text-xs text-navy-500 mb-1">市值</p>
+                <p className="text-lg font-bold font-mono text-navy-100">
+                  {formatMoney(selectedHolding.marketValue)}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-navy-800/50">
+                <p className="text-xs text-navy-500 mb-1">盈亏</p>
+                <p
+                  className={cn(
+                    "text-lg font-bold font-mono",
+                    selectedHolding.profit >= 0
+                      ? "text-profit"
+                      : "text-loss"
+                  )}
+                >
+                  {selectedHolding.profit >= 0 ? "+" : ""}
+                  {formatMoney(selectedHolding.profit)}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-navy-800/50">
+                <p className="text-xs text-navy-500 mb-1">收益率</p>
+                <p
+                  className={cn(
+                    "text-lg font-bold font-mono",
+                    selectedHolding.profitRate >= 0
+                      ? "text-profit"
+                      : "text-loss"
+                  )}
+                >
+                  {selectedHolding.profitRate >= 0 ? "+" : ""}
+                  {formatPercent(selectedHolding.profitRate)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex items-center gap-2 mb-3">
+                <List className="w-4 h-4 text-gold-400" />
+                <h4 className="text-sm font-medium text-navy-200">
+                  当月交易记录
+                </h4>
+                <span className="text-xs text-navy-500 ml-auto">
+                  共 {holdingTrades.length} 笔
+                </span>
+              </div>
+
+              {holdingTrades.length > 0 ? (
+                <div className="space-y-2">
+                  {holdingTrades.map((trade, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 rounded-lg bg-navy-800/30 hover:bg-navy-800/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            "inline-flex items-center justify-center w-10 h-10 rounded-lg text-xs font-medium",
+                            trade.type === "buy"
+                              ? "bg-profit/10 text-profit"
+                              : "bg-loss/10 text-loss"
+                          )}
+                        >
+                          {trade.type === "buy" ? "买入" : "卖出"}
+                        </span>
+                        <div>
+                          <p className="font-medium text-navy-100">
+                            {trade.stockName}
+                          </p>
+                          <p className="text-xs text-navy-500">
+                            {trade.date}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono text-navy-100">
+                          {formatMoney(trade.amount)}
+                        </p>
+                        <p className="text-xs text-navy-500">
+                          手续费 {formatMoney(trade.fee)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 text-navy-600 mx-auto mb-2" />
+                  <p className="text-sm text-navy-500">当月暂无交易记录</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-4 mt-4 border-t border-navy-700">
+              <button
+                onClick={() => {
+                  setShowHoldingDetail(false);
+                  setSelectedHolding(null);
+                }}
+                className="btn-secondary flex-1"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showExportModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">

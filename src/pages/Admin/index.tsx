@@ -15,16 +15,45 @@ import {
   RefreshCw,
   Activity,
   Crown,
+  X,
+  ChevronRight,
+  Info,
 } from "lucide-react";
 import { formatMoney, formatPercent, formatNumber } from "@/utils/format";
 import { cn } from "@/lib/utils";
 import type { MemberLevel } from "@/types";
-import type { TimeRange } from "@/stores/adminStore";
+import type { TimeRange, MetricType } from "@/stores/adminStore";
 
 export default function AdminPage() {
-  const { stats, timeRange, loading, setTimeRange, getFilteredStats } =
-    useAdminStore();
+  const {
+    stats,
+    timeRange,
+    loading,
+    setTimeRange,
+    getFilteredStats,
+    selectedMetric,
+    showMetricDetail,
+    setSelectedMetric,
+    setShowMetricDetail,
+    getMetricTrendData,
+    getMetricInfo,
+  } = useAdminStore();
   const filteredStats = useMemo(() => getFilteredStats(), [getFilteredStats, timeRange]);
+
+  const handleMetricClick = (metric: MetricType) => {
+    setSelectedMetric(metric);
+    setShowMetricDetail(true);
+  };
+
+  const metricTrendData = useMemo(() => {
+    if (!selectedMetric) return [];
+    return getMetricTrendData(selectedMetric);
+  }, [selectedMetric, getMetricTrendData]);
+
+  const metricInfo = useMemo(() => {
+    if (!selectedMetric) return { label: "", unit: "", color: "" };
+    return getMetricInfo(selectedMetric);
+  }, [selectedMetric, getMetricInfo]);
 
   const timeRanges: { key: TimeRange; label: string }[] = [
     { key: "today", label: "今天" },
@@ -58,6 +87,7 @@ export default function AdminPage() {
       bgColor: "bg-gold-500/10",
       trend: "+12.5%",
       trendUp: true,
+      metricType: "users" as MetricType,
     },
     {
       label: "绑定资产",
@@ -67,6 +97,7 @@ export default function AdminPage() {
       bgColor: "bg-blue-500/10",
       trend: "+8.3%",
       trendUp: true,
+      metricType: "assets" as MetricType,
     },
     {
       label: "模拟交易活跃度",
@@ -76,6 +107,7 @@ export default function AdminPage() {
       bgColor: "bg-green-500/10",
       trend: "+15.2%",
       trendUp: true,
+      metricType: "trades" as MetricType,
     },
     {
       label: "广告点击率",
@@ -85,6 +117,7 @@ export default function AdminPage() {
       bgColor: "bg-pink-500/10",
       trend: "-0.3%",
       trendUp: false,
+      metricType: "adClick" as MetricType,
     },
   ];
 
@@ -298,7 +331,8 @@ export default function AdminPage() {
             return (
               <div
                 key={index}
-                className="glass-card p-5"
+                onClick={() => handleMetricClick(stat.metricType)}
+                className="glass-card p-5 cursor-pointer hover:shadow-gold-sm transition-all group"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <div className="flex items-start justify-between mb-4">
@@ -327,9 +361,12 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <p className="text-xs text-navy-500 mb-1">{stat.label}</p>
-                <p className="text-2xl font-bold font-mono text-navy-100">
-                  {loading ? "--" : stat.value}
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-2xl font-bold font-mono text-navy-100">
+                    {loading ? "--" : stat.value}
+                  </p>
+                  <ChevronRight className="w-5 h-5 text-navy-600 group-hover:text-gold-400 transition-colors" />
+                </div>
                 {stat.label === "注册用户数" && (
                   <p className="text-xs text-navy-500 mt-2">
                     新增用户:{" "}
@@ -338,6 +375,9 @@ export default function AdminPage() {
                     </span>
                   </p>
                 )}
+                <p className="text-xs text-navy-600 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  点击查看趋势详情
+                </p>
               </div>
             );
           })}
@@ -456,6 +496,233 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {showMetricDetail && selectedMetric && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="glass-card p-6 w-full max-w-3xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: `${metricInfo.color}20` }}
+                >
+                  {selectedMetric === "users" && (
+                    <Users
+                      className="w-6 h-6"
+                      style={{ color: metricInfo.color }}
+                    />
+                  )}
+                  {selectedMetric === "assets" && (
+                    <DollarSign
+                      className="w-6 h-6"
+                      style={{ color: metricInfo.color }}
+                    />
+                  )}
+                  {selectedMetric === "trades" && (
+                    <Activity
+                      className="w-6 h-6"
+                      style={{ color: metricInfo.color }}
+                    />
+                  )}
+                  {selectedMetric === "adClick" && (
+                    <MousePointerClick
+                      className="w-6 h-6"
+                      style={{ color: metricInfo.color }}
+                    />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-serif font-semibold text-navy-100">
+                    {metricInfo.label}趋势详情
+                  </h3>
+                  <p className="text-sm text-navy-500">
+                    时间范围: {timeRanges.find((r) => r.key === timeRange)?.label}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowMetricDetail(false);
+                  setSelectedMetric(null);
+                }}
+                className="p-1.5 rounded-lg hover:bg-navy-700 text-navy-400 hover:text-navy-200 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="p-4 rounded-lg bg-navy-800/50">
+                <p className="text-xs text-navy-500 mb-1">当前值</p>
+                <p
+                  className="text-2xl font-bold font-mono"
+                  style={{ color: metricInfo.color }}
+                >
+                  {selectedMetric === "users" &&
+                    formatNumber(filteredStats.totalUsers)}
+                  {selectedMetric === "assets" &&
+                    formatMoney(filteredStats.totalAssets)}
+                  {selectedMetric === "trades" &&
+                    formatNumber(filteredStats.simTradeCount)}
+                  {selectedMetric === "adClick" &&
+                    formatPercent(filteredStats.adClickRate, 2, false)}
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-navy-800/50">
+                <p className="text-xs text-navy-500 mb-1">平均值</p>
+                <p className="text-xl font-bold font-mono text-navy-200">
+                  {metricTrendData.length > 0
+                    ? selectedMetric === "adClick"
+                      ? formatPercent(
+                          metricTrendData.reduce(
+                            (sum, d) => sum + d.value,
+                            0
+                          ) / metricTrendData.length,
+                          2,
+                          false
+                        )
+                      : formatNumber(
+                          Math.floor(
+                            metricTrendData.reduce(
+                              (sum, d) => sum + d.value,
+                              0
+                            ) / metricTrendData.length
+                          )
+                        )
+                    : "--"}
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-navy-800/50">
+                <p className="text-xs text-navy-500 mb-1">数据点</p>
+                <p className="text-xl font-bold font-mono text-navy-200">
+                  {metricTrendData.length} 天
+                </p>
+              </div>
+            </div>
+
+            <div className="h-[350px] mb-6">
+              <ReactECharts
+                option={{
+                  backgroundColor: "transparent",
+                  animation: true,
+                  grid: {
+                    left: "60px",
+                    right: "20px",
+                    top: "30px",
+                    bottom: "30px",
+                  },
+                  tooltip: {
+                    trigger: "axis",
+                    backgroundColor: "rgba(15, 23, 42, 0.95)",
+                    borderColor: "#334155",
+                    textStyle: { color: "#E2E8F0", fontSize: 12 },
+                    formatter: (params: any) => {
+                      if (!params || params.length === 0) return "";
+                      const p = params[0];
+                      return `<div style="padding: 8px;"><div style="font-size: 12px; color: #94A3B8; margin-bottom: 4px;">${p.axisValue}</div><div style="font-size: 14px;"><span style="color: ${metricInfo.color};">● ${metricInfo.label}: </span><strong>${
+                        selectedMetric === "assets"
+                          ? formatMoney(p.value)
+                          : selectedMetric === "adClick"
+                          ? formatPercent(p.value, 2, false)
+                          : formatNumber(p.value)
+                      }</strong></div></div>`;
+                    },
+                  },
+                  xAxis: {
+                    type: "category",
+                    data: metricTrendData.map((d) => d.date),
+                    axisLine: { lineStyle: { color: "#334155" } },
+                    axisLabel: { color: "#94A3B8", fontSize: 10 },
+                    splitLine: { show: false },
+                  },
+                  yAxis: {
+                    type: "value",
+                    scale: true,
+                    axisLine: { lineStyle: { color: "#334155" } },
+                    axisLabel: {
+                      color: "#94A3B8",
+                      fontSize: 10,
+                      formatter: (v: number) =>
+                        selectedMetric === "assets"
+                          ? formatMoney(v)
+                          : selectedMetric === "adClick"
+                          ? formatPercent(v, 2, false)
+                          : formatNumber(v),
+                    },
+                    splitLine: { lineStyle: { color: "#1E293B" } },
+                  },
+                  series: [
+                    {
+                      name: metricInfo.label,
+                      type: "line",
+                      data: metricTrendData.map((d) => d.value),
+                      smooth: true,
+                      symbol: "circle",
+                      symbolSize: 8,
+                      lineStyle: { color: metricInfo.color, width: 3 },
+                      itemStyle: { color: metricInfo.color },
+                      areaStyle: {
+                        color: {
+                          type: "linear",
+                          x: 0,
+                          y: 0,
+                          x2: 0,
+                          y2: 1,
+                          colorStops: [
+                            {
+                              offset: 0,
+                              color: `${metricInfo.color}40`,
+                            },
+                            {
+                              offset: 1,
+                              color: `${metricInfo.color}00`,
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                }}
+                style={{ height: "100%", width: "100%" }}
+                opts={{ renderer: "canvas" }}
+              />
+            </div>
+
+            <div className="p-4 rounded-lg bg-navy-800/30 border border-navy-700">
+              <div className="flex items-start gap-2">
+                <Info className="w-5 h-5 text-gold-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-navy-300 font-medium mb-1">
+                    指标说明
+                  </p>
+                  <p className="text-xs text-navy-500">
+                    {selectedMetric === "users" &&
+                      "注册用户数指在平台上完成注册的总用户数量，是衡量平台用户规模的核心指标。该指标随时间增长反映平台的用户获取能力。"}
+                    {selectedMetric === "assets" &&
+                      "绑定资产指用户在平台上绑定的所有证券账户的总资产规模，反映了平台管理的资产体量。资产规模越大，平台的潜在收益空间越大。"}
+                    {selectedMetric === "trades" &&
+                      "模拟交易活跃度指用户在模拟交易模块进行交易的总次数，反映了用户对模拟交易功能的使用频率和参与度。活跃度高说明用户粘性强。"}
+                    {selectedMetric === "adClick" &&
+                      "广告点击率指广告点击量与广告曝光量的比率，是衡量广告效果的重要指标。点击率越高，说明广告内容越吸引用户，投放效果越好。"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-6 mt-6 border-t border-navy-700">
+              <button
+                onClick={() => {
+                  setShowMetricDetail(false);
+                  setSelectedMetric(null);
+                }}
+                className="btn-secondary flex-1"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageContainer>
   );
 }

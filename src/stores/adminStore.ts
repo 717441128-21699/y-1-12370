@@ -4,30 +4,76 @@ import { mockAdminStats } from "@/mock";
 
 export type TimeRange = "today" | "7d" | "30d" | "90d" | "custom";
 
+export type MetricType = "users" | "assets" | "trades" | "adClick";
+
 interface AdminState {
   stats: AdminStats;
   timeRange: TimeRange;
   loading: boolean;
+  selectedMetric: MetricType | null;
+  showMetricDetail: boolean;
   setTimeRange: (range: TimeRange) => void;
+  setSelectedMetric: (metric: MetricType | null) => void;
+  setShowMetricDetail: (show: boolean) => void;
   getFilteredStats: () => {
     totalUsers: number;
     totalAssets: number;
     simTradeCount: number;
     adClickRate: number;
     newUsers: number;
-    trendData: { date: string; users: number; assets: number; trades: number }[];
+    trendData: { date: string; users: number; assets: number; trades: number; adClick?: number }[];
     memberDistribution: { level: MemberLevel; count: number }[];
   };
+  getMetricTrendData: (metric: MetricType) => { date: string; value: number }[];
+  getMetricInfo: (metric: MetricType) => { label: string; unit: string; color: string };
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
   stats: mockAdminStats,
   timeRange: "30d",
   loading: false,
+  selectedMetric: null,
+  showMetricDetail: false,
 
   setTimeRange: (range: TimeRange) => {
     set({ timeRange: range, loading: true });
     setTimeout(() => set({ loading: false }), 500);
+  },
+
+  setSelectedMetric: (metric) => {
+    set({ selectedMetric: metric });
+  },
+
+  setShowMetricDetail: (show) => {
+    set({ showMetricDetail: show });
+  },
+
+  getMetricInfo: (metric) => {
+    const infoMap: Record<MetricType, { label: string; unit: string; color: string }> = {
+      users: { label: "注册用户数", unit: "人", color: "#D4AF37" },
+      assets: { label: "绑定资产", unit: "元", color: "#3B82F6" },
+      trades: { label: "模拟交易活跃度", unit: "次", color: "#10B981" },
+      adClick: { label: "广告点击率", unit: "%", color: "#F59E0B" },
+    };
+    return infoMap[metric];
+  },
+
+  getMetricTrendData: (metric) => {
+    const { getFilteredStats } = get();
+    const stats = getFilteredStats();
+
+    const metricMap: Record<MetricType, keyof typeof stats.trendData[0]> = {
+      users: "users",
+      assets: "assets",
+      trades: "trades",
+      adClick: "adClick",
+    };
+
+    const key = metricMap[metric];
+    return stats.trendData.map((d) => ({
+      date: d.date,
+      value: (d as any)[key] || 0,
+    }));
   },
 
   getFilteredStats: () => {

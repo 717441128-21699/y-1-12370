@@ -663,6 +663,14 @@ export const mockBacktestResult = {
   lossTrades: 52,
   equityCurve: generateEquityCurve(1000000, 252, 0.2865),
   benchmarkCurve: generateEquityCurve(1000000, 252, 0.08),
+  strategyParams: {
+    shortPeriod: 5,
+    longPeriod: 20,
+    signalPeriod: 9,
+    stopLoss: 5,
+    takeProfit: 15,
+    positionSize: 30,
+  },
 };
 
 export const mockMonthlyReports: MonthlyReport[] = [
@@ -845,6 +853,7 @@ export const mockAdminStats: AdminStats = {
       users: 120000 + i * 680 + Math.floor(Math.random() * 500),
       assets: 85000000000 + i * 350000000 + Math.floor(Math.random() * 100000000),
       trades: 200000 + i * 2500 + Math.floor(Math.random() * 3000),
+      adClick: 3.2 + Math.random() * 1.5 + i * 0.1,
     };
   }),
   membershipDistribution: [

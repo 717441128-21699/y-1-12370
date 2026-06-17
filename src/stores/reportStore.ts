@@ -7,10 +7,15 @@ interface ReportState {
   selectedReport: MonthlyReport | null;
   loading: boolean;
   monthlyReports: MonthlyReport[];
+  selectedHoldingSymbol: string | null;
+  showHoldingDetail: boolean;
   selectReport: (month: string) => void;
   getMonthlyReport: (month: string) => MonthlyReport | undefined;
   generateReport: (month: string) => Promise<MonthlyReport>;
   exportReport: (month: string, format: "pdf" | "excel") => Promise<boolean>;
+  setSelectedHolding: (symbol: string | null) => void;
+  setShowHoldingDetail: (show: boolean) => void;
+  getTradesBySymbol: (symbol: string) => MonthlyReport["tradeHistory"];
 }
 
 export const useReportStore = create<ReportState>((set, get) => ({
@@ -18,10 +23,26 @@ export const useReportStore = create<ReportState>((set, get) => ({
   monthlyReports: mockMonthlyReports,
   selectedReport: mockMonthlyReports[0],
   loading: false,
+  selectedHoldingSymbol: null,
+  showHoldingDetail: false,
 
   selectReport: (month: string) => {
     const report = get().reports.find((r) => r.month === month);
-    set({ selectedReport: report || null });
+    set({ selectedReport: report || null, selectedHoldingSymbol: null, showHoldingDetail: false });
+  },
+
+  setSelectedHolding: (symbol) => {
+    set({ selectedHoldingSymbol: symbol });
+  },
+
+  setShowHoldingDetail: (show) => {
+    set({ showHoldingDetail: show });
+  },
+
+  getTradesBySymbol: (symbol) => {
+    const report = get().selectedReport;
+    if (!report) return [];
+    return report.tradeHistory.filter((t) => t.symbol === symbol);
   },
 
   getMonthlyReport: (month: string) => {
