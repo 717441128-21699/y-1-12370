@@ -6,6 +6,7 @@ import type {
   StockQuote,
   WatchlistStock,
   Membership,
+  MemberLevel,
   SimAccount,
   News,
   MonthlyReport,
@@ -13,6 +14,7 @@ import type {
   RebalanceSuggestion,
   Alert,
   KLineData,
+  AdminStats,
 } from "@/types";
 import { enrichKLineData } from "@/utils/indicators";
 
@@ -824,7 +826,7 @@ export const mockMarketForecast: MarketForecast = {
   },
 };
 
-export const mockAdminStats = {
+export const mockAdminStats: AdminStats = {
   totalUsers: 128456,
   activeUsers: 45823,
   newUsersToday: 1256,
@@ -846,10 +848,10 @@ export const mockAdminStats = {
     };
   }),
   membershipDistribution: [
-    { level: "bronze", count: 58452 },
-    { level: "silver", count: 35680 },
-    { level: "gold", count: 22560 },
-    { level: "platinum", count: 8520 },
-    { level: "diamond", count: 3244 },
+    { level: "bronze" as MemberLevel, count: 58452 },
+    { level: "silver" as MemberLevel, count: 35680 },
+    { level: "gold" as MemberLevel, count: 22560 },
+    { level: "platinum" as MemberLevel, count: 8520 },
+    { level: "diamond" as MemberLevel, count: 3244 },
   ],
 };
